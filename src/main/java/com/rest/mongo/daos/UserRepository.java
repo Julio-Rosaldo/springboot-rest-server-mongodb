@@ -1,4 +1,4 @@
-package com.rest.mongo.repositories;
+package com.rest.mongo.daos;
 
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;

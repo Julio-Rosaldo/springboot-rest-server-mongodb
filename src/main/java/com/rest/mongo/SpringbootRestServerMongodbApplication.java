@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
-import com.rest.mongo.repositories.UserRepository;
+import com.rest.mongo.daos.UserRepository;
 
 @SpringBootApplication
 @EnableMongoRepositories(basePackageClasses = UserRepository.class)

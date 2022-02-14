@@ -15,6 +15,7 @@ public class User {
 
 	@Id
 	private String id;
+	private String email;
 	private List<String> roles;
 	private boolean isActive;
 	private UserInfo userInfo;
@@ -25,6 +26,14 @@ public class User {
 
 	public void setId(String id) {
 		this.id = id;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
 	}
 
 	public List<String> getRoles() {
@@ -53,24 +62,30 @@ public class User {
 
 	@Override
 	public String toString() {
-		return "User [id=" + id + ", roles=" + roles + ", isActive=" + isActive + ", userInfo=" + userInfo + "]";
+		return "User [id=" + id + ", email=" + email + ", roles=" + roles + ", isActive=" + isActive + ", userInfo="
+				+ userInfo + "]";
 	}
-	
+
 	public static User updateUser(User actualData, User newData) {
+		if (newData.getEmail() != null) {
+			actualData.setEmail(newData.getEmail());
+		}
 		
 		if (newData.getRoles() != null) {
 			actualData.setRoles(newData.getRoles());
 		}
+		
 		if (newData.getIsActive() != actualData.getIsActive()) {
 			actualData.setIsActive(newData.getIsActive());
 		}
+		
 		if (newData.getUserInfo() != null) {
 			if (actualData.getUserInfo() == null) {
 				actualData.setUserInfo(new UserInfo());
 			}
 			actualData.setUserInfo(UserInfo.updateUserInfo(actualData.getUserInfo(), newData.getUserInfo()));
 		}
-		
+
 		return actualData;
 	}
 
