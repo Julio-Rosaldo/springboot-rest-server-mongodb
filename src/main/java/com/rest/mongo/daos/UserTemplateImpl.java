@@ -2,6 +2,8 @@ package com.rest.mongo.daos;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -12,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Repository;
 
 import com.mongodb.client.result.DeleteResult;
+import com.rest.mongo.controllers.UserController;
+import com.rest.mongo.entities.Pagination;
 import com.rest.mongo.entities.ResponseData;
 import com.rest.mongo.entities.ResponseError;
 import com.rest.mongo.entities.ResponseListData;
@@ -22,31 +26,48 @@ import com.rest.mongo.entities.User;
 @Repository
 public class UserTemplateImpl implements UserTemplate {
 
+	@SuppressWarnings("unused")
+	private static final Logger LOGGER = LoggerFactory.getLogger(UserController.class);
+
 	@Autowired
 	UserRepository userRepository;
 
 	@Autowired
 	MongoTemplate mongoTemplate;
-	
-	@Override
-	public ResponseListData listUsers() {
-		ResponseListData data = new ResponseListData();
-		
-		List<User> listUsers = userRepository.findAll();
-		data.setData(listUsers);
-		
-		return data;
-	}
 
 	@Override
-	public ResponseListData listUsersByName(String userInfoName) {
+	public ResponseListData listUsers(Long paginationKey, Long pageSize, String userInfoName) {
 		ResponseListData data = new ResponseListData();
-		
+
 		Query query = new Query();
-		query.addCriteria(Criteria.where("userInfo.name").is(userInfoName));
+
+		// Add find criteria
+		if (userInfoName != null) {
+			query.addCriteria(Criteria.where("userInfo.name").is(userInfoName));
+		}
+
+		// First, get total elements
+		Long totalElements = mongoTemplate.count(query, User.class, "users");
+
+		// Then, add pagination criteria
+		query.skip(paginationKey * pageSize);
+		query.limit(pageSize.intValue());
+
+		// Finally, execute the query
 		List<User> listUsers = mongoTemplate.find(query, User.class, "users");
 		data.setData(listUsers);
-		
+
+		if (totalElements > 0L) {
+			Double totalPages = Math.ceil(totalElements.doubleValue() / pageSize.doubleValue());
+
+			Pagination pagination = new Pagination();
+			pagination.setPage(paginationKey);
+			pagination.setTotalPages(totalPages.longValue());
+			pagination.setTotalElements(totalElements);
+			pagination.setPageSize(pageSize);
+			data.setPagination(pagination);
+		}
+
 		return data;
 	}
 
@@ -74,7 +95,7 @@ public class UserTemplateImpl implements UserTemplate {
 
 		return data;
 	}
-	
+
 	@Override
 	public ResponseData createUser(User user) {
 		ResponseData data = new ResponseData();
@@ -95,10 +116,10 @@ public class UserTemplateImpl implements UserTemplate {
 			error.setCode(HttpStatus.BAD_REQUEST);
 			data.setError(error);
 		}
-		
+
 		return data;
 	}
-	
+
 	@Override
 	public ResponseData updateUser(String id, User user) {
 		ResponseData data = new ResponseData();
@@ -114,29 +135,36 @@ public class UserTemplateImpl implements UserTemplate {
 			error.setCode(HttpStatus.BAD_REQUEST);
 			data.setError(error);
 		}
-		
+
 		return data;
 	}
 
-	// El id es requerido para actualizar el elemento deseado
-	/*
-	public ResponseData insertUser(String id, User user) {
+	@Override
+	public ResponseData deleteUsers() {
 		ResponseData data = new ResponseData();
-		
+
 		try {
-			user.setId(id);
-			data.setData(mongoTemplate.save(user, "users"));
+			DeleteResult deleteResult = mongoTemplate.remove(new Query(), User.class, "users");
+			Long count = deleteResult.getDeletedCount();
+			if (!(count > 0L)) {
+				throw new EmptyResultDataAccessException(1);
+			}
 		} catch (IllegalArgumentException e) {
 			ResponseError error = new ResponseError();
 			error.setName(e.getClass().getSimpleName());
 			error.setMessage(e.getMessage());
 			error.setCode(HttpStatus.BAD_REQUEST);
 			data.setError(error);
+		} catch (EmptyResultDataAccessException e) {
+			ResponseError error = new ResponseError();
+			error.setName(e.getClass().getSimpleName());
+			error.setMessage(e.getMessage());
+			error.setCode(HttpStatus.NOT_FOUND);
+			data.setError(error);
 		}
 
 		return data;
 	}
-	*/
 
 	@Override
 	public ResponseData deleteUser(String id) {
@@ -167,4 +195,5 @@ public class UserTemplateImpl implements UserTemplate {
 
 		return data;
 	}
+
 }

@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResponseListData {
 
+	private Pagination pagination;
 	private List<User> data;
 	private ResponseError error;
 
@@ -18,6 +19,14 @@ public class ResponseListData {
 
 	public void setData(List<User> data) {
 		this.data = data;
+	}
+
+	public Pagination getPagination() {
+		return pagination;
+	}
+
+	public void setPagination(Pagination pagination) {
+		this.pagination = pagination;
 	}
 
 	public ResponseError getError() {
@@ -30,7 +39,7 @@ public class ResponseListData {
 
 	@Override
 	public String toString() {
-		return "ResponseListData [data=" + data + ", error=" + error + "]";
+		return "ResponseListData [data=" + data + ", pagination=" + pagination + ", error=" + error + "]";
 	}
 
 }

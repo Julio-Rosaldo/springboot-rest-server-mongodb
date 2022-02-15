@@ -27,6 +27,7 @@ import com.rest.mongo.entities.User;
 @RestController
 public class UserController {
 
+	@SuppressWarnings("unused")
 	private static final Logger LOGGER = LoggerFactory.getLogger(UserController.class);
 
 	@Autowired
@@ -34,23 +35,19 @@ public class UserController {
 
 	@GetMapping(value = "/users")
 	public ResponseEntity<ResponseListData> listUsers(
+			@RequestParam(name = "paginationKey", required = false) Long paginationKey,
+			@RequestParam(name = "pageSize", required = false) Long pageSize,
 			@RequestParam(name = "userInfo.name", required = false) String userInfoName) {
+		
+		paginationKey = paginationKey == null ? 0L : paginationKey;
+		pageSize = pageSize == null ? 10L : pageSize;
 
-		LOGGER.info(userInfoName);
-
-		ResponseListData data = new ResponseListData();
-		if (userInfoName != null) {
-			data = userTemplate.listUsersByName(userInfoName);
-			// Falta refactorizar por aqui
-		} else {
-			data = userTemplate.listUsers();	
-		}
+		ResponseListData data = userTemplate.listUsers(paginationKey, pageSize, userInfoName);
 
 		HttpStatus status = null;
 		if (data.getError() != null) {
 			status = data.getError().getCode();
-		}
-		else if (data.getData() == null || data.getData().isEmpty()) {
+		} else if (data.getData() == null || data.getData().isEmpty()) {
 			status = HttpStatus.NO_CONTENT;
 		} else {
 			status = HttpStatus.OK;
@@ -62,14 +59,13 @@ public class UserController {
 
 	@GetMapping(value = "/users/{id}")
 	public ResponseEntity<ResponseData> getUser(@PathVariable(name = "id", required = true) String id) {
-		
+
 		ResponseData data = userTemplate.getUser(id);
 
 		HttpStatus status = null;
 		if (data.getError() != null) {
 			status = data.getError().getCode();
-		}
-		else if (data.getData() == null) {
+		} else if (data.getData() == null) {
 			status = HttpStatus.NO_CONTENT;
 		} else {
 			status = HttpStatus.OK;
@@ -88,7 +84,7 @@ public class UserController {
 		responseHeaders.add("Content-Type", "application/json");
 
 		ResponseData data = userTemplate.createUser(payload);
-		
+
 		HttpStatus status = null;
 		if (data.getError() != null) {
 			status = data.getError().getCode();
@@ -103,7 +99,7 @@ public class UserController {
 	@PutMapping(value = "/users/{id}")
 	public ResponseEntity<ResponseData> insertUser(@PathVariable(name = "id", required = true) String id,
 			@RequestBody User payload) {
-		
+
 		ResponseData data = userTemplate.getUser(id);
 		HttpStatus status = null;
 		if (data.getData() != null) {
@@ -114,11 +110,11 @@ public class UserController {
 			data = userTemplate.updateUser(id, payload);
 			status = HttpStatus.CREATED;
 		}
-		
+
 		if (data.getError() != null) {
 			status = data.getError().getCode();
 		}
-		
+
 		ResponseEntity<ResponseData> response = new ResponseEntity<ResponseData>(data, null, status);
 		return response;
 	}
@@ -126,7 +122,7 @@ public class UserController {
 	@PatchMapping(value = "/users/{id}")
 	public ResponseEntity<ResponseData> updateUser(@PathVariable(name = "id", required = true) String id,
 			@RequestBody User payload) {
-		
+
 		ResponseData data = userTemplate.getUser(id);
 		if (data.getData() != null) {
 			User updatedUser = User.updateUser(data.getData(), payload);
@@ -139,7 +135,22 @@ public class UserController {
 		} else {
 			status = HttpStatus.OK;
 		}
-		
+
+		ResponseEntity<ResponseData> response = new ResponseEntity<ResponseData>(data, null, status);
+		return response;
+	}
+	
+	@DeleteMapping(value = "/users")
+	public ResponseEntity<ResponseData> deleteUsers() {
+		ResponseData data = userTemplate.deleteUsers();
+
+		HttpStatus status = null;
+		if (data.getError() != null) {
+			status = data.getError().getCode();
+		} else {
+			status = HttpStatus.NO_CONTENT;
+		}
+
 		ResponseEntity<ResponseData> response = new ResponseEntity<ResponseData>(data, null, status);
 		return response;
 	}
@@ -154,7 +165,7 @@ public class UserController {
 		} else {
 			status = HttpStatus.NO_CONTENT;
 		}
-		
+
 		ResponseEntity<ResponseData> response = new ResponseEntity<ResponseData>(data, null, status);
 		return response;
 	}
