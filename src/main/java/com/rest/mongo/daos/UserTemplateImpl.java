@@ -16,6 +16,7 @@ import org.springframework.stereotype.Repository;
 import com.mongodb.client.result.DeleteResult;
 import com.rest.mongo.controllers.UserController;
 import com.rest.mongo.entities.Pagination;
+import com.rest.mongo.entities.References;
 import com.rest.mongo.entities.ResponseData;
 import com.rest.mongo.entities.ResponseError;
 import com.rest.mongo.entities.ResponseListData;
@@ -35,6 +36,8 @@ public class UserTemplateImpl implements UserTemplate {
 	@Autowired
 	MongoTemplate mongoTemplate;
 
+	private static final String USERS_COLLECTION = "users";
+
 	@Override
 	public ResponseListData listUsers(Long paginationKey, Long pageSize, String userInfoName) {
 		ResponseListData data = new ResponseListData();
@@ -47,24 +50,36 @@ public class UserTemplateImpl implements UserTemplate {
 		}
 
 		// First, get total elements
-		Long totalElements = mongoTemplate.count(query, User.class, "users");
+		Long totalElements = mongoTemplate.count(query, User.class, USERS_COLLECTION);
 
 		// Then, add pagination criteria
 		query.skip(paginationKey * pageSize);
 		query.limit(pageSize.intValue());
 
 		// Finally, execute the query
-		List<User> listUsers = mongoTemplate.find(query, User.class, "users");
+		List<User> listUsers = mongoTemplate.find(query, User.class, USERS_COLLECTION);
 		data.setData(listUsers);
 
-		if (totalElements > 0L) {
-			Double totalPages = Math.ceil(totalElements.doubleValue() / pageSize.doubleValue());
+		if (!listUsers.isEmpty()) {
+			Double totalPagesAux = Math.ceil(totalElements.doubleValue() / pageSize.doubleValue());
+			Long totalPages = totalPagesAux.longValue();
+
+			Long lastPage = paginationKey.equals(totalPages - 1L) ? null : (totalPages - 1L);
+			Long nextPage = paginationKey.equals(totalPages - 1L) ? null : (paginationKey + 1L);
+			Long previousPage = paginationKey.equals(0L) ? null : (paginationKey - 1L);
+
+			References references = new References();
+			references.setLastPage(lastPage);
+			references.setNextPage(nextPage);
+			references.setPreviousPage(previousPage);
 
 			Pagination pagination = new Pagination();
+			pagination.setReferences(references);
 			pagination.setPage(paginationKey);
-			pagination.setTotalPages(totalPages.longValue());
+			pagination.setTotalPages(totalPages);
 			pagination.setTotalElements(totalElements);
 			pagination.setPageSize(pageSize);
+
 			data.setPagination(pagination);
 		}
 
@@ -77,7 +92,7 @@ public class UserTemplateImpl implements UserTemplate {
 
 		Query query = new Query();
 		query.addCriteria(Criteria.where("id").is(id));
-		List<User> listUsers = mongoTemplate.find(query, User.class, "users");
+		List<User> listUsers = mongoTemplate.find(query, User.class, USERS_COLLECTION);
 
 		try {
 			if (listUsers != null && !listUsers.isEmpty()) {
@@ -144,7 +159,7 @@ public class UserTemplateImpl implements UserTemplate {
 		ResponseData data = new ResponseData();
 
 		try {
-			DeleteResult deleteResult = mongoTemplate.remove(new Query(), User.class, "users");
+			DeleteResult deleteResult = mongoTemplate.remove(new Query(), User.class, USERS_COLLECTION);
 			Long count = deleteResult.getDeletedCount();
 			if (!(count > 0L)) {
 				throw new EmptyResultDataAccessException(1);
@@ -174,7 +189,7 @@ public class UserTemplateImpl implements UserTemplate {
 		query.addCriteria(Criteria.where("id").is(id));
 
 		try {
-			DeleteResult deleteResult = mongoTemplate.remove(query, User.class, "users");
+			DeleteResult deleteResult = mongoTemplate.remove(query, User.class, USERS_COLLECTION);
 			Long count = deleteResult.getDeletedCount();
 			if (!count.equals(1L)) {
 				throw new EmptyResultDataAccessException(1);

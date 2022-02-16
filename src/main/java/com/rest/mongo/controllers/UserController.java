@@ -2,6 +2,8 @@ package com.rest.mongo.controllers;
 
 import java.util.Map;
 
+import javax.servlet.http.HttpServletRequest;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,18 +29,20 @@ import com.rest.mongo.entities.User;
 @RestController
 public class UserController {
 
-	@SuppressWarnings("unused")
 	private static final Logger LOGGER = LoggerFactory.getLogger(UserController.class);
 
 	@Autowired
 	UserTemplate userTemplate;
 
 	@GetMapping(value = "/users")
-	public ResponseEntity<ResponseListData> listUsers(
+	public ResponseEntity<ResponseListData> listUsers(HttpServletRequest request,
 			@RequestParam(name = "paginationKey", required = false) Long paginationKey,
 			@RequestParam(name = "pageSize", required = false) Long pageSize,
 			@RequestParam(name = "userInfo.name", required = false) String userInfoName) {
-		
+
+		LOGGER.info(request.getLocalAddr());
+		LOGGER.info(request.getRemoteAddr());
+
 		paginationKey = paginationKey == null ? 0L : paginationKey;
 		pageSize = pageSize == null ? 10L : pageSize;
 
@@ -139,7 +143,7 @@ public class UserController {
 		ResponseEntity<ResponseData> response = new ResponseEntity<ResponseData>(data, null, status);
 		return response;
 	}
-	
+
 	@DeleteMapping(value = "/users")
 	public ResponseEntity<ResponseData> deleteUsers() {
 		ResponseData data = userTemplate.deleteUsers();
