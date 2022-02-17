@@ -36,17 +36,15 @@ public class UserController {
 
 	@GetMapping(value = "/users")
 	public ResponseEntity<ResponseListData> listUsers(HttpServletRequest request,
-			@RequestParam(name = "paginationKey", required = false) Long paginationKey,
+			@RequestParam(name = "page", required = false) Long paginationKey,
 			@RequestParam(name = "pageSize", required = false) Long pageSize,
+			@RequestParam(name = "email", required = false) String email,
 			@RequestParam(name = "userInfo.name", required = false) String userInfoName) {
 
 		LOGGER.info(request.getLocalAddr());
 		LOGGER.info(request.getRemoteAddr());
 
-		paginationKey = paginationKey == null ? 0L : paginationKey;
-		pageSize = pageSize == null ? 10L : pageSize;
-
-		ResponseListData data = userTemplate.listUsers(paginationKey, pageSize, userInfoName);
+		ResponseListData data = userTemplate.listUsers(paginationKey, pageSize, email, userInfoName);
 
 		HttpStatus status = null;
 		if (data.getError() != null) {
@@ -85,9 +83,8 @@ public class UserController {
 
 		HttpHeaders responseHeaders = new HttpHeaders();
 		responseHeaders.add("Custom-Header", "foo");
-		responseHeaders.add("Content-Type", "application/json");
 
-		ResponseData data = userTemplate.createUser(payload);
+		ResponseData data = userTemplate.createUser(null, payload);
 
 		HttpStatus status = null;
 		if (data.getError() != null) {
@@ -111,10 +108,10 @@ public class UserController {
 			data = userTemplate.updateUser(id, updatedUser);
 			status = HttpStatus.OK;
 		} else {
-			data = userTemplate.updateUser(id, payload);
+			data = userTemplate.createUser(id, payload);
 			status = HttpStatus.CREATED;
 		}
-
+		
 		if (data.getError() != null) {
 			status = data.getError().getCode();
 		}

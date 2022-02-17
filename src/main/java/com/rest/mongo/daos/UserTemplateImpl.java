@@ -1,6 +1,7 @@
 package com.rest.mongo.daos;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,8 +16,6 @@ import org.springframework.stereotype.Repository;
 
 import com.mongodb.client.result.DeleteResult;
 import com.rest.mongo.controllers.UserController;
-import com.rest.mongo.entities.Pagination;
-import com.rest.mongo.entities.References;
 import com.rest.mongo.entities.ResponseData;
 import com.rest.mongo.entities.ResponseError;
 import com.rest.mongo.entities.ResponseListData;
@@ -39,10 +38,18 @@ public class UserTemplateImpl implements UserTemplate {
 	private static final String USERS_COLLECTION = "users";
 
 	@Override
-	public ResponseListData listUsers(Long paginationKey, Long pageSize, String userInfoName) {
+	public ResponseListData listUsers(Long page, Long pageSize, String email, String userInfoName) {
 		ResponseListData data = new ResponseListData();
 
+		page = page == null ? 0L : page;
+		pageSize = pageSize == null ? 10L : pageSize;
+
 		Query query = new Query();
+
+		// Add find criteria
+		if (email != null) {
+			query.addCriteria(Criteria.where("email").is(email));
+		}
 
 		// Add find criteria
 		if (userInfoName != null) {
@@ -53,7 +60,7 @@ public class UserTemplateImpl implements UserTemplate {
 		Long totalElements = mongoTemplate.count(query, User.class, USERS_COLLECTION);
 
 		// Then, add pagination criteria
-		query.skip(paginationKey * pageSize);
+		query.skip(page * pageSize);
 		query.limit(pageSize.intValue());
 
 		// Finally, execute the query
@@ -61,26 +68,7 @@ public class UserTemplateImpl implements UserTemplate {
 		data.setData(listUsers);
 
 		if (!listUsers.isEmpty()) {
-			Double totalPagesAux = Math.ceil(totalElements.doubleValue() / pageSize.doubleValue());
-			Long totalPages = totalPagesAux.longValue();
-
-			Long lastPage = paginationKey.equals(totalPages - 1L) ? null : (totalPages - 1L);
-			Long nextPage = paginationKey.equals(totalPages - 1L) ? null : (paginationKey + 1L);
-			Long previousPage = paginationKey.equals(0L) ? null : (paginationKey - 1L);
-
-			References references = new References();
-			references.setLastPage(lastPage);
-			references.setNextPage(nextPage);
-			references.setPreviousPage(previousPage);
-
-			Pagination pagination = new Pagination();
-			pagination.setReferences(references);
-			pagination.setPage(paginationKey);
-			pagination.setTotalPages(totalPages);
-			pagination.setTotalElements(totalElements);
-			pagination.setPageSize(pageSize);
-
-			data.setPagination(pagination);
+			data.setPagination(UserConvertionHelper.createPagination(page, pageSize, totalElements));
 		}
 
 		return data;
@@ -112,26 +100,35 @@ public class UserTemplateImpl implements UserTemplate {
 	}
 
 	@Override
-	public ResponseData createUser(User user) {
+	public ResponseData createUser(String id, User user) {
 		ResponseData data = new ResponseData();
 
 		try {
+			if (id == null || id.isEmpty()) {
+				id = UUID.randomUUID().toString();
+			}
+			// Check if the provided id has the right format
+			else if (!UUID.fromString(id).toString().equals(id)) {
+				throw new IllegalArgumentException("Invalid UUID string: ".concat(id));
+			}
+			user.setId(id);
+
 			User createdUser = userRepository.insert(user);
 			data.setData(createdUser);
-		} catch (DuplicateKeyException e) {
-			ResponseError error = new ResponseError();
-			error.setName(e.getClass().getSimpleName());
-			error.setMessage(e.getMessage());
-			error.setCode(HttpStatus.BAD_REQUEST);
-			data.setError(error);
 		} catch (IllegalArgumentException e) {
 			ResponseError error = new ResponseError();
 			error.setName(e.getClass().getSimpleName());
 			error.setMessage(e.getMessage());
 			error.setCode(HttpStatus.BAD_REQUEST);
 			data.setError(error);
+		} catch (DuplicateKeyException e) {
+			ResponseError error = new ResponseError();
+			error.setName(e.getClass().getSimpleName());
+			error.setMessage(e.getMessage());
+			error.setCode(HttpStatus.BAD_REQUEST);
+			data.setError(error);
 		}
-
+		
 		return data;
 	}
 
@@ -140,6 +137,9 @@ public class UserTemplateImpl implements UserTemplate {
 		ResponseData data = new ResponseData();
 
 		try {
+			if (!UUID.fromString(id).toString().equals(id)) {
+				throw new IllegalArgumentException("Invalid UUID string: ".concat(id));
+			}
 			user.setId(id);
 			User createdUser = userRepository.save(user);
 			data.setData(createdUser);
@@ -161,7 +161,7 @@ public class UserTemplateImpl implements UserTemplate {
 		try {
 			DeleteResult deleteResult = mongoTemplate.remove(new Query(), User.class, USERS_COLLECTION);
 			Long count = deleteResult.getDeletedCount();
-			if (!(count > 0L)) {
+			if (count.equals(0L)) {
 				throw new EmptyResultDataAccessException(1);
 			}
 		} catch (IllegalArgumentException e) {
@@ -191,7 +191,7 @@ public class UserTemplateImpl implements UserTemplate {
 		try {
 			DeleteResult deleteResult = mongoTemplate.remove(query, User.class, USERS_COLLECTION);
 			Long count = deleteResult.getDeletedCount();
-			if (!count.equals(1L)) {
+			if (count.equals(0L)) {
 				throw new EmptyResultDataAccessException(1);
 			}
 		} catch (IllegalArgumentException e) {
